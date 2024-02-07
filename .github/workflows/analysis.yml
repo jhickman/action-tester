@@ -20,6 +20,16 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/cache/restore@v4
+        id: cache
+        with:
+          path: ~/test_database_dump.sql
+          key: ${{ runner.os }}-${{ hashFiles('**/migrations/*.py') }}
+      - name: Restore Database
+        if: steps.cache.outputs.cache-hit == 'true'
+        run: |
+          echo Restoring Database from backup
+          PGPASSWORD=pass1234 psql -U the_user -d actiontest -h localhost -f ~/test_database_dump.sql
       - name: Install Dependencies
         run: |
           # install needed libraries into container
