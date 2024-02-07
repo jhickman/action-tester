@@ -7,8 +7,24 @@ jobs:
   tests:
     name: Unit Tests
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgis/postgis:15-master
+        env:
+          POSTGRES_DB: actiontest
+          POSTGRES_PASSWORD: pass1234
+          POSTGRES_USER: the_user
+        ports:
+          - "5432:5432"
+
     steps:
       - uses: actions/checkout@v4
+      - name: Install Dependencies
+        run: |
+          # install needed libraries into container
+          sudo apt update
+          sudo apt install -y gdal-bin
       - name: Set up python
         uses: actions/setup-python@v4
         with:
@@ -18,16 +34,9 @@ jobs:
           architecture: 'x64'
           cache: 'pip' # caching pip dependencies
       - run: pip install -r requirements.txt
-      - name: Install Dependencies
-        run: |
-          # install needed libraries into container
-          sudo apt update
-          sudo apt install -y gdal-bin
-
       - name: Run Tests
         env:
           ENV: testing
         run: |
-          # for now, skipping any annotated django_db tests
-          python -m pytest -v -m 'not django_db'
+          python -m pytest -v
 
