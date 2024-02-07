@@ -18,4 +18,4 @@ def django_db_setup(django_db_setup, django_db_blocker):
             runner = FreshDbRunner()
             runner.run_for_test(call_command)
             print('sleeping 30 seconds... painful')
-            sleep(30)
+            # sleep(100)

@@ -7,29 +7,50 @@ jobs:
   tests:
     name: Unit Tests
     runs-on: ubuntu-latest
+    env:
+      PGDB: actiontest
+      PGPASSWORD: pass1234
+      PGUSER: the_user
+      DB_DUMP: test_database_dump.sql
 
     services:
       postgres:
         image: postgis/postgis:15-master
         env:
-          POSTGRES_DB: actiontest
-          POSTGRES_PASSWORD: pass1234
-          POSTGRES_USER: the_user
+          POSTGRES_DB: ${{ env.PGDB }}
+          POSTGRES_PASSWORD: ${{ env.PGPASSWORD }}
+          POSTGRES_USER: ${{ env.PGUSER }}
         ports:
           - "5432:5432"
 
     steps:
       - uses: actions/checkout@v4
+      - id: db_cache_key
+        run: |
+          echo "service_container=$(docker ps --filter "ancestor=postgis/postgis:15-master" --format "{{.Names}}")" >> $GITHUB_OUTPUT
+          echo "dbkey=test_database_${{ runner.os }}-${{ hashFiles('**/migrations/*.py') }}" >> $GITHUB_OUTPUT
+      - name: Test PostgreSQL Connection
+        run: |
+          CONTAINER_NAME=${{ steps.db_cache_key.outputs.service_container }}
+          docker exec $CONTAINER_NAME \
+              psql -U ${{ env.PGUSER }} -l
       - uses: actions/cache/restore@v4
-        id: cache
+        id: restore_cache
         with:
-          path: ~/test_database_dump.sql
-          key: ${{ runner.os }}-${{ hashFiles('**/migrations/*.py') }}
+          path: ${{ env.DB_DUMP }}
+          key: ${{ steps.db_cache_key.outputs.dbkey }}
       - name: Restore Database
-        if: steps.cache.outputs.cache-hit == 'true'
+        if: steps.restore_cache.outputs.cache-hit == 'true'
         run: |
           echo Restoring Database from backup
-          PGPASSWORD=pass1234 psql -U the_user -d actiontest -h localhost -f ~/test_database_dump.sql
+          CONTAINER_NAME=${{ steps.db_cache_key.outputs.service_container }}
+          echo 'copying dump file to postgres container'
+          docker cp ${{env.DB_DUMP}} "$CONTAINER_NAME":/tmp
+          echo 'creating database test_${{env.PGDB }}'
+          docker exec $CONTAINER_NAME \
+            psql -U ${{ env.PGUSER }} -d ${{ env.PGDB }} -c "create DATABASE test_${{ env.PGDB }};"
+          docker exec $CONTAINER_NAME \
+            psql -U ${{ env.PGUSER }} -d test_${{ env.PGDB }} -f /tmp/${{ env.DB_DUMP }}
       - name: Install Dependencies
         run: |
           # install needed libraries into container
@@ -49,4 +70,15 @@ jobs:
           ENV: testing
         run: |
           python -m pytest -v
+      - name: Create backup
+        run: |
+          CONTAINER_NAME=${{ steps.db_cache_key.outputs.service_container }}
+          docker exec $CONTAINER_NAME \
+              pg_dump -U ${{ env.PGUSER }} -d test_${{ env.PGDB }} > ${{ env.DB_DUMP }}
+
+      - uses: actions/cache/save@v4
+        id: save_cache
+        with:
+          path: ${{ env.DB_DUMP }}
+          key: ${{ steps.db_cache_key.outputs.dbkey }}
 
