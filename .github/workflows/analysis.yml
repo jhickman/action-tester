@@ -1,0 +1,33 @@
+name: Static Analysis
+
+on:
+  pull_request
+
+jobs:
+  tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up python
+        uses: actions/setup-python@v4
+        with:
+          # Semantic version range syntax or exact version of a Python version
+          python-version: '3.11.6'
+          # Optional - x64 or x86 architecture, defaults to x64
+          architecture: 'x64'
+          cache: 'pip' # caching pip dependencies
+      - run: pip install -r requirements.txt
+      - name: Install Dependencies
+        run: |
+          # install needed libraries into container
+          sudo apt update
+          sudo apt install -y gdal-bin
+
+      - name: Run Tests
+        env:
+          ENV: testing
+        run: |
+          # for now, skipping any annotated django_db tests
+          python -m pytest -v -m 'not django_db'
+
