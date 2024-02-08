@@ -9,3 +9,16 @@ class TestSomething:
     def test_id(self):
         questions = Question.objects.all()
         assert len(questions) == 1
+
+
+
+class TestSomethingWithoutDatabase:
+    def test_something(self):
+        assert 1 == 1
+
+    def test_again(self):
+        assert 2 != 1
+
+    def test_3(self):
+        assert 1 != 2
+        

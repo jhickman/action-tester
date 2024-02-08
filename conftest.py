@@ -1,3 +1,4 @@
+from time import sleep
 from django.core.management import call_command
 import pytest
 
@@ -16,3 +17,5 @@ def django_db_setup(django_db_setup, django_db_blocker):
             print("######################### Database doesn't exist creating data #########################")
             runner = FreshDbRunner()
             runner.run_for_test(call_command)
+            print('sleeping 30 seconds... painful')
+            # sleep(100)
